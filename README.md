@@ -16,6 +16,12 @@
 
 [Releases](https://github.com/socar-bird/confluence-link/releases) 에서 `install-confluence-link.command` 다운로드 후 **더블클릭**하면 Obsidian 볼트를 자동으로 찾아 설치합니다.
 
+> **macOS Gatekeeper 경고 시**: 다운로드한 파일이 차단될 수 있습니다. 터미널에서 아래 명령 실행 후 다시 더블클릭하세요.
+> ```bash
+> xattr -d com.apple.quarantine ~/Downloads/install-confluence-link.command
+> ```
+> 또는 **System Settings → Privacy & Security** 하단에서 "확인 없이 열기"를 클릭하세요.
+
 또는 직접 설치:
 ```bash
 git clone https://github.com/socar-bird/confluence-link.git
