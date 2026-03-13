@@ -172,7 +172,7 @@ export interface OrderedListElement {
 
 export interface BlockquoteElement {
 	type: string;
-	content: ParagraphElement[];
+	content: (ParagraphElement | AdfElement)[];
 }
 
 export interface ADFNode {
@@ -185,6 +185,16 @@ export type ListItemElement = {
 	content: AdfElement[];
 };
 
+export type PanelType = "info" | "note" | "warning" | "error" | "success";
+
+export interface PanelElement {
+	type: "panel";
+	attrs: {
+		panelType: PanelType;
+	};
+	content: AdfElement[];
+}
+
 export type AdfElement =
 	| HeadingElement
 	| ParagraphElement
@@ -196,4 +206,5 @@ export type AdfElement =
 	| LinkElement
 	| BlockquoteElement
 	| RuleElement
-	| EmphasisElement;
+	| EmphasisElement
+	| PanelElement;

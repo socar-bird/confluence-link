@@ -24,6 +24,8 @@ import {
 	MediaSingleItemElement,
 	MediaItemElement,
 	Layout,
+	PanelElement,
+	PanelType,
 } from "./types";
 
 export default class ADFBuilder {
@@ -176,6 +178,21 @@ export default class ADFBuilder {
 					content: [{ type: "text", text: blockquoteText }],
 				},
 			],
+		};
+	}
+
+	blockquoteItemWithContent(content: AdfElement[]): BlockquoteElement {
+		return {
+			type: "blockquote",
+			content,
+		};
+	}
+
+	panelItem(panelType: PanelType, content: AdfElement[]): PanelElement {
+		return {
+			type: "panel",
+			attrs: { panelType },
+			content,
 		};
 	}
 
