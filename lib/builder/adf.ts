@@ -26,6 +26,7 @@ import {
 	Layout,
 	PanelElement,
 	PanelType,
+	ExtensionElement,
 } from "./types";
 
 export default class ADFBuilder {
@@ -193,6 +194,33 @@ export default class ADFBuilder {
 			type: "panel",
 			attrs: { panelType },
 			content,
+		};
+	}
+
+	mermaidDiagramItem(mermaidCode: string): ExtensionElement {
+		const localId = crypto.randomUUID();
+		return {
+			type: "extension",
+			attrs: {
+				layout: "default",
+				extensionType: "com.atlassian.ecosystem",
+				extensionKey:
+					"8c5438cd-96d4-4c5b-a10b-dd06c1f5a7fc/f562d20f-bf6c-412c-affb-d78a16814320/static/mermaid-diagram",
+				text: "Mermaid diagram",
+				parameters: {
+					layout: "extension",
+					guestParams: {
+						input: mermaidCode,
+						url: "",
+					},
+					forgeEnvironment: "PRODUCTION",
+					extensionId:
+						"ari:cloud:ecosystem::extension/8c5438cd-96d4-4c5b-a10b-dd06c1f5a7fc/f562d20f-bf6c-412c-affb-d78a16814320/static/mermaid-diagram",
+					extensionTitle: "Mermaid diagram",
+					localId,
+				},
+				localId,
+			},
 		};
 	}
 

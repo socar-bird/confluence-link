@@ -195,6 +195,18 @@ export interface PanelElement {
 	content: AdfElement[];
 }
 
+export interface ExtensionElement {
+	type: "extension";
+	attrs: {
+		layout: string;
+		extensionType: string;
+		extensionKey: string;
+		text?: string;
+		parameters: Record<string, any>;
+		localId: string;
+	};
+}
+
 export type AdfElement =
 	| HeadingElement
 	| ParagraphElement
@@ -207,4 +219,5 @@ export type AdfElement =
 	| BlockquoteElement
 	| RuleElement
 	| EmphasisElement
-	| PanelElement;
+	| PanelElement
+	| ExtensionElement;

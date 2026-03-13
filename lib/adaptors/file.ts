@@ -285,7 +285,7 @@ export default class FileAdaptor {
 				if (codeElement.classList.contains("language-mermaid")) {
 					const mermaidText = codeElement.textContent || "";
 					builder.addItem(
-						builder.codeBlockItem(mermaidText, "mermaid")
+						builder.mermaidDiagramItem(mermaidText)
 					);
 					break;
 				}
