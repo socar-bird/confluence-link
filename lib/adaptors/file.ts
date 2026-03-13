@@ -129,8 +129,24 @@ export default class FileAdaptor {
 		return confluenceUrl as string;
 	}
 
+	/**
+	 * Detect if a node is an Obsidian callout.
+	 * Obsidian renders callouts as:
+	 *   <blockquote class="callout" data-callout="warning">
+	 * OR sometimes:
+	 *   <div class="callout" data-callout="warning">
+	 */
 	private detectCalloutType(node: HTMLElement): PanelType | null {
-		// Obsidian renders callouts as <div class="callout" data-callout="warning">
+		// Case 1: The node itself is a callout (most common)
+		// e.g. <blockquote class="callout" data-callout="warning">
+		if (node.classList?.contains("callout")) {
+			const calloutType = node.getAttribute("data-callout")?.toLowerCase();
+			if (calloutType) {
+				return CALLOUT_TO_PANEL_MAP[calloutType] || "info";
+			}
+		}
+
+		// Case 2: The node contains a callout child
 		const calloutEl = node.querySelector(".callout") as HTMLElement;
 		if (calloutEl) {
 			const calloutType = calloutEl.getAttribute("data-callout")?.toLowerCase();
@@ -139,7 +155,7 @@ export default class FileAdaptor {
 			}
 		}
 
-		// Fallback: check if blockquote text starts with [!type]
+		// Case 3: Fallback - check if blockquote text starts with [!type]
 		const text = node.textContent || "";
 		const match = text.match(/^\[!([\w-]+)\]/);
 		if (match) {
@@ -150,56 +166,57 @@ export default class FileAdaptor {
 		return null;
 	}
 
-	private async buildBlockquoteContent(
+	/**
+	 * Build ADF content from a callout or blockquote node.
+	 * Handles both cases:
+	 *   - Node itself is the callout (has .callout class)
+	 *   - Node wraps a callout child
+	 */
+	private async buildCalloutContent(
 		node: HTMLElement,
 		filePath: string,
 		labelDirector: LabelDirector
 	): Promise<AdfElement[]> {
 		const contentBuilder = new ADFBuilder();
 
-		for (const child of Array.from(node.childNodes)) {
-			const el = child as HTMLElement;
+		// Find the callout element - could be the node itself or a child
+		const calloutEl = node.classList?.contains("callout")
+			? node
+			: (node.querySelector(".callout") as HTMLElement);
 
-			if (!el.nodeName) continue;
-
-			// Obsidian callout structure: blockquote > .callout > .callout-title + .callout-content
-			if (el.classList?.contains("callout")) {
-				// Process callout-content children
-				const calloutContent = el.querySelector(".callout-content");
-				if (calloutContent) {
-					for (const contentChild of Array.from(calloutContent.childNodes)) {
-						await this.traverse(
-							contentChild as HTMLElement,
-							contentBuilder,
-							filePath,
-							labelDirector
-						);
-					}
-				}
-				// Also add the callout title as bold text
-				const calloutTitle = el.querySelector(".callout-title-inner");
-				if (calloutTitle && calloutTitle.textContent) {
-					const titleParagraph = contentBuilder.paragraphItem();
-					titleParagraph.content = [
-						contentBuilder.strongItem(calloutTitle.textContent),
-					];
-					// Prepend title before content
-					const built = contentBuilder.build();
-					contentBuilder.clear();
-					contentBuilder.addItem(titleParagraph);
-					for (const item of built) {
-						contentBuilder.addItem(item);
-					}
-				}
-				continue;
+		if (calloutEl) {
+			// Add the callout title as bold text
+			const calloutTitle = calloutEl.querySelector(".callout-title-inner");
+			if (calloutTitle && calloutTitle.textContent) {
+				const titleParagraph = contentBuilder.paragraphItem();
+				titleParagraph.content = [
+					contentBuilder.strongItem(calloutTitle.textContent),
+				];
+				contentBuilder.addItem(titleParagraph);
 			}
 
-			// Regular blockquote child nodes
-			await this.traverse(el, contentBuilder, filePath, labelDirector);
+			// Process callout-content children
+			const calloutContent = calloutEl.querySelector(".callout-content");
+			if (calloutContent) {
+				for (const child of Array.from(calloutContent.childNodes)) {
+					await this.traverse(
+						child as HTMLElement,
+						contentBuilder,
+						filePath,
+						labelDirector
+					);
+				}
+			}
+		} else {
+			// Regular blockquote - process all children
+			for (const child of Array.from(node.childNodes)) {
+				const el = child as HTMLElement;
+				if (!el.nodeName) continue;
+				await this.traverse(el, contentBuilder, filePath, labelDirector);
+			}
 		}
 
 		const result = contentBuilder.build();
-		// Ensure at least one paragraph (ADF panel requires content)
 		if (result.length === 0) {
 			return [contentBuilder.paragraphItem(node.textContent || "")];
 		}
@@ -321,12 +338,12 @@ export default class FileAdaptor {
 				);
 
 				break;
-			case "BLOCKQUOTE":
+			case "BLOCKQUOTE": {
 				const panelType = this.detectCalloutType(node);
 
 				if (panelType) {
 					// Obsidian callout → Confluence panel
-					const panelContent = await this.buildBlockquoteContent(
+					const panelContent = await this.buildCalloutContent(
 						node, filePath, labelDirector
 					);
 					builder.addItem(
@@ -334,7 +351,7 @@ export default class FileAdaptor {
 					);
 				} else {
 					// Regular blockquote - process children for rich content
-					const bqContent = await this.buildBlockquoteContent(
+					const bqContent = await this.buildCalloutContent(
 						node, filePath, labelDirector
 					);
 					builder.addItem(
@@ -342,10 +359,19 @@ export default class FileAdaptor {
 					);
 				}
 				break;
-			case "DIV":
-				// Obsidian sometimes wraps callouts in a div
-				if (node.classList?.contains("callout") ||
-					node.querySelector(".callout")) {
+			}
+			case "DIV": {
+				// Obsidian can render callouts as <div class="callout" data-callout="...">
+				const divPanelType = this.detectCalloutType(node);
+				if (divPanelType) {
+					const panelContent = await this.buildCalloutContent(
+						node, filePath, labelDirector
+					);
+					builder.addItem(
+						builder.panelItem(divPanelType, panelContent)
+					);
+				} else {
+					// Generic div - traverse children
 					for (const child of Array.from(node.childNodes)) {
 						await this.traverse(
 							child as HTMLElement,
@@ -356,6 +382,7 @@ export default class FileAdaptor {
 					}
 				}
 				break;
+			}
 			case "HR":
 				builder.addItem(builder.horizontalRuleItem());
 				break;
